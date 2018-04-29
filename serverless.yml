@@ -1,0 +1,48 @@
+service: workshop-account
+
+frameworkVersion: ">=1.26.1"
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  region: eu-west-1
+  variableSyntax: '\$\${([\s\S]+?)}'
+
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "s3:ListBucket"
+      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
+    - Effect: "Allow"
+      Action:
+        - "s3:PutObject"
+      Resource:
+        Fn::Join:
+          - ""
+          - - "arn:aws:s3:::"
+            - "Ref" : "ServerlessDeploymentBucket"
+            - "/*"
+
+functions:
+  UsersCreate:
+    handler: users.create
+    name: workshop-user-create
+    memorySize: 128
+    timeout: 60
+
+  UsersDelete:
+    handler: users.delete
+    name: workshop-user-delete
+    memorySize: 128
+    timeout: 60
+
+resources:
+  Resources:
+    AllowCloudWatch:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName: "workshop-user-delete"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::Sub: "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/*"
