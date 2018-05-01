@@ -7,21 +7,17 @@ provider:
   runtime: nodejs8.10
   region: eu-west-1
   variableSyntax: '\$\${([\s\S]+?)}'
+  environment:
+    ROLE_TO_ASSUME: $${self:custom.role}
 
   iamRoleStatements:
     - Effect: "Allow"
       Action:
-        - "s3:ListBucket"
-      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
-    - Effect: "Allow"
-      Action:
-        - "s3:PutObject"
-      Resource:
-        Fn::Join:
-          - ""
-          - - "arn:aws:s3:::"
-            - "Ref" : "ServerlessDeploymentBucket"
-            - "/*"
+        - "sts:AssumeRole"
+      Resource: "$${self:custom.role}"
+
+custom:
+  role: $${opt:role}
 
 functions:
   UsersCreate:
