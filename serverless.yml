@@ -11,10 +11,20 @@ provider:
     ROLE_TO_ASSUME: $${self:custom.role}
 
   iamRoleStatements:
-    - Effect: "Allow"
+    - Sid: "AllowAssumeRoleToWorkshopAccount"
+      Effect: "Allow"
       Action:
         - "sts:AssumeRole"
       Resource: "$${self:custom.role}"
+    - Sid: "AllowScheduleRule"
+      Effect: "Allow"
+      Action:
+        - "events:PutRule"
+        - "events:DeleteRule"
+        - "events:PutTargets"
+        - "events:RemoveTargets"
+      Resource:
+         - Fn::Sub: "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/workshop-*"
 
 custom:
   role: $${opt:role}

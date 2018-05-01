@@ -7,7 +7,7 @@ const ROLE_TO_ASSUME = process.env.ROLE_TO_ASSUME;
 
 /**
  * workshop-name
- * user-to-create: ["username1", "username2"]
+ * users-to-create: ["username1", "username2"]
  * group: "groupname in which add the user"
  * date-to-delete: ISO 8601 date
  * @param event
@@ -16,40 +16,56 @@ const ROLE_TO_ASSUME = process.env.ROLE_TO_ASSUME;
 module.exports.create = async function (event, context) {
   logger.info('Run lambda users-create with parameters', JSON.stringify(event));
 
+  const usersToCreate = event['users-to-create'];
+  const workshopName = event['workshop-name'];
+  const dateToDelete = event['date-to-delete'];
+  const groupName = event['groupname'];
+
   // Check parameters
-  if(!event['workshop-name'] || !event['user-to-create'] || !event['date-to-delete']) {
-    logger.error('Missing parameters. Mandatory: workshop-name, user-to-create, date-to-delete');
+  if (!workshopName || !usersToCreate || !dateToDelete) {
+    logger.error('Missing parameters. Mandatory: workshop-name, users-to-create, date-to-delete');
     return;
   }
   assumeRole();
 
   // Create users
-  const userCreatedPromise = (event['user-to-create'] || [])
-    .map(username => createUser(username, event['groupname']));
+  const userCreatedPromise = (usersToCreate || [])
+    .map(username => createUser(username, groupName));
 
   const userCreated = await Promise.all(userCreatedPromise);
   logger.info('Created users', JSON.stringify(userCreated));
 
   // Create schedule rule to delete users
-  await createRuleToDeleteUsers(event['workshop-name'], event['user-to-create'], new Date(event['date-to-delete']), context.invokedFunctionArn);
+  await createRuleToDeleteUsers(workshopName,
+    usersToCreate,
+    new Date(dateToDelete), (context.invokedFunctionArn||'').replace('workshop-user-create', 'workshop-user-delete'));
+
+  return userCreated;
 };
 
 module.exports.delete = async function (event) {
   logger.info('Run lambda users-delete with parameters', JSON.stringify(event));
 
-  const dateToDelete = event['date-to-delete'];
   const usersToDelete = event['users-to-delete'];
+  const workshopName = event['workshop-name'];
 
-  // Delete date is not reached: nothing to do
-  if(new Date() <= dateToDelete)
+  // Check parameters
+  if (!usersToDelete || !workshopName) {
+    logger.error('Missing parameters. Mandatory: workshop-name, users-to-create, date-to-delete');
     return;
+  }
 
-  logger.info(`Date to delete users ${usersToDelete} is reached`);
   assumeRole();
-  const userCreatedPromise = (usersToDelete || []).map(deleteUser);
+  const userDeletedPromise = (usersToDelete || []).map(deleteUser);
 
-  const userCreated = await Promise.all(userCreatedPromise);
-  logger.info('Deleted users', JSON.stringify(userCreated));
+  const userDeleted = await Promise.all(userDeletedPromise);
+  logger.info('Deleted users', JSON.stringify(userDeleted));
+
+  // Delete the schedule rule
+  const ruleName = getScheduleRuleName(workshopName);
+  logger.info('Delete schedule rule', ruleName);
+  await cloudwatchevents.removeTargets({ Ids: [ '1' ], Rule: ruleName }).promise();
+  await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
 
   return 42;
 };
@@ -83,11 +99,16 @@ async function deleteUser(username) {
 
     // Delete specific service credentials
     const creds = await getSpecificCredentials(username);
-    await Promise.all(creds.map(k => iam.deleteServiceSpecificCredential({ ServiceSpecificCredentialId: k, UserName: username }).promise()));
+    await Promise.all(creds.map(k => iam.deleteServiceSpecificCredential({
+      ServiceSpecificCredentialId: k,
+      UserName: username,
+    }).promise()));
 
     // Finally delete the user
     await iam.deleteUser({ UserName: username }).promise();
   }
+
+  return username;
 }
 
 async function deleteLoginProfile(username) {
@@ -151,13 +172,13 @@ async function createUser(username, group) {
     await iam.createUser({ UserName: username }).promise();
 
     // Set password to the account
-    logger.debug('Create login profile for', username);
     const password = `Xebia!${randomString()}`;
     const paramsPassword = {
       Password: password,
       UserName: username,
     };
-    await iam.createLoginProfile(paramsPassword).promise()
+    logger.debug(`Create login profile for ${username} with password ${password}`);
+    await iam.createLoginProfile(paramsPassword).promise();
 
     // Add the user to the specified group
     logger.debug(`Add user ${username} to the group `, group);
@@ -172,26 +193,35 @@ async function createUser(username, group) {
 }
 
 function randomString(size = 5) {
-  return Math.random().toString(36).substring(2, 2 + size)
+  return Math.random().toString(36).substring(2, 2 + size);
 }
 
 
 async function createRuleToDeleteUsers(workshopName, users, deleteDate, lambdaArn = 'arn:aws:lambda:eu-west-1:010154155802:function:workshop-user-delete') {
   const ruleParams = {
-    Name: `workshop-${workshopName}-user-delete`,
-    ScheduleExpression: 'rate(1 hour)',
-    State: 'ENABLED'
+    Name: getScheduleRuleName(workshopName),
+    ScheduleExpression: `cron(${deleteDate.getUTCMinutes()} ${deleteDate.getUTCHours()} ${deleteDate.getUTCDate()} ${deleteDate.getUTCMonth() + 1} ? ${deleteDate.getFullYear()})`,
+    State: 'ENABLED',
   };
 
-  await cloudwatchevents.putRule(ruleParams).promise();
+  await cloudwatchevents.putRule(ruleParams).promise()
+    .then(result => logger.info(`Schedule rule ${ruleParams.Name} is created`, ruleParams))
+    .catch(error => {
+      logger.info(`Error creating schedule rule ${ruleParams.Name}`, error);
+      throw error;
+    });
 
   const targetParams = {
     Rule: ruleParams.Name,
     Targets: [{
       Arn: lambdaArn,
       Id: '1',
-      Input: JSON.stringify({"date-to-delete": deleteDate.toISOString(), "users-to-delete": users })
-    }]
+      Input: JSON.stringify({ "workshop-name": workshopName, "users-to-delete": users }),
+    }],
   };
   await cloudwatchevents.putTargets(targetParams).promise();
+}
+
+function getScheduleRuleName(workshopName) {
+  return `workshop-${workshopName}-user-delete`;
 }
