@@ -25,9 +25,15 @@ provider:
         - "events:RemoveTargets"
       Resource:
          - Fn::Sub: "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/workshop-*"
+    - Sid: "AllowSES"
+      Effect: "Allow"
+      Action:
+        - "ses:sendTemplatedEmail"
+      Resource: "*"
 
 custom:
   role: $${opt:role}
+  ses-template: workshop-users-create
 
 functions:
   UsersCreate:
@@ -35,6 +41,9 @@ functions:
     name: workshop-user-create
     memorySize: 128
     timeout: 60
+    environment:
+      LOGIN_URL: http://xebia-france-workshop.signin.aws.amazon.com/console
+      SES_CREATE_TEMPLATE: workshop-users-create
 
   UsersDelete:
     handler: users.delete
@@ -52,3 +61,14 @@ resources:
         Principal: "events.amazonaws.com"
         SourceArn:
           Fn::Sub: "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/*"
+
+    MailCreateTemplate:
+      Type: "AWS::SES::Template"
+      Properties:
+        Template:
+          TemplateName: $${self:custom.ses-template}
+          SubjectPart: "[AWS] Create users account for {{ workshopName}} into workshop account"
+          HtmlPart: |
+            <p>Users accounts created</p>
+            <b>Login url:</b> {{ loginUrl}}
+            <div>{{accounts}}</div>

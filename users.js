@@ -1,12 +1,17 @@
 'use strict';
 const AWS = require('aws-sdk');
 const cloudwatchevents = new AWS.CloudWatchEvents();
+const ses = new AWS.SES();
 const logger = require('./logger.utils');
+const generator = require('generate-password');
 
 const ROLE_TO_ASSUME = process.env.ROLE_TO_ASSUME;
+const SES_CREATE_TEMPLATE = process.env.SES_CREATE_TEMPLATE;
+const LOGIN_URL = process.env.LOGIN_URL;
 
 /**
  * workshop-name
+ * responsable-email: email of the event manager which will receive user/password
  * users-to-create: ["username1", "username2"]
  * group: "groupname in which add the user"
  * date-to-delete: ISO 8601 date
@@ -16,6 +21,7 @@ const ROLE_TO_ASSUME = process.env.ROLE_TO_ASSUME;
 module.exports.create = async function (event, context) {
   logger.info('Run lambda users-create with parameters', JSON.stringify(event));
 
+  const responsable = event['responsable-email'];
   const usersToCreate = event['users-to-create'];
   const workshopName = event['workshop-name'];
   const dateToDelete = event['date-to-delete'];
@@ -39,6 +45,9 @@ module.exports.create = async function (event, context) {
   await createRuleToDeleteUsers(workshopName,
     usersToCreate,
     new Date(dateToDelete), (context.invokedFunctionArn||'').replace('workshop-user-create', 'workshop-user-delete'));
+
+  logger.info('Send email to', responsable);
+  await sendCreateEmail(workshopName, userCreated, responsable);
 
   return userCreated;
 };
@@ -67,7 +76,7 @@ module.exports.delete = async function (event) {
   await cloudwatchevents.removeTargets({ Ids: [ '1' ], Rule: ruleName }).promise();
   await cloudwatchevents.deleteRule({ Name: ruleName }).promise();
 
-  return 42;
+  return userDeleted;
 };
 
 function assumeRole() {
@@ -172,7 +181,14 @@ async function createUser(username, group) {
     await iam.createUser({ UserName: username }).promise();
 
     // Set password to the account
-    const password = `Xebia!${randomString()}`;
+    const password = generator.generate({
+      strict: true,
+      length: 10,
+      symbols: true,
+      uppercase: true,
+      numbers: true,
+      excludeSimilarCharacters: true,
+    });
     const paramsPassword = {
       Password: password,
       UserName: username,
@@ -191,11 +207,6 @@ async function createUser(username, group) {
     return { username, error: e };
   }
 }
-
-function randomString(size = 5) {
-  return Math.random().toString(36).substring(2, 2 + size);
-}
-
 
 async function createRuleToDeleteUsers(workshopName, users, deleteDate, lambdaArn = 'arn:aws:lambda:eu-west-1:010154155802:function:workshop-user-delete') {
   const ruleParams = {
@@ -224,4 +235,23 @@ async function createRuleToDeleteUsers(workshopName, users, deleteDate, lambdaAr
 
 function getScheduleRuleName(workshopName) {
   return `workshop-${workshopName}-user-delete`;
+}
+
+async function sendCreateEmail(workshopName, usersCreated, address) {
+  const params = {
+    Destination: {
+      ToAddresses: [ address ]
+    },
+    Source: "admin@xebia.fr",
+    Template: SES_CREATE_TEMPLATE,
+    TemplateData: JSON.stringify({
+      workshopName: workshopName,
+      loginUrl: LOGIN_URL,
+      accounts: usersCreated
+    })
+  };
+
+  await ses.sendTemplatedEmail(params).promise()
+    .then(result => logger.debug(`Send email success with params ${JSON.stringify(params)}`, params))
+    .catch(error => logger.error(`Error when sending email with params ${params}`, error));
 }
