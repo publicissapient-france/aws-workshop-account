@@ -1,0 +1,82 @@
+{
+  "responseId": "0ad5e612-daeb-487f-8818-8cccb11a9c47",
+  "queryResult": {
+    "queryText": "oui",
+    "action": "Orderaccountscreation.Orderaccountscreation-yes",
+    "parameters": {
+    },
+    "allRequiredParamsPresent": true,
+    "fulfillmentText": "Les comptes sont en cours de création. Tu recevras un mail récapitulatif.",
+    "fulfillmentMessages": [
+      {
+        "text": {
+          "text": [
+            "Les comptes sont en cours de création. Tu recevras un mail récapitulatif."
+          ]
+        }
+      }
+    ],
+    "outputContexts": [
+      {
+        "name": "projects/aws-workshop-114ca/agent/sessions/104ad6af-ee0e-a41e-1d39-7cc2f83d7314/contexts/orderaccountscreation-followup",
+        "lifespanCount": 1
+      },
+      {
+        "name": "projects/aws-workshop-114ca/agent/sessions/104ad6af-ee0e-a41e-1d39-7cc2f83d7314/contexts/fulfil-event-end-date-complete",
+        "lifespanCount": 4,
+        "parameters": {
+          "end-date": "2018-07-16T12:00:00+02:00",
+          "end-time-period": "",
+          "end-date.original": "demain",
+          "end-time": "",
+          "end-time.original": "",
+          "end-time-period.original": ""
+        }
+      },
+      {
+        "name": "projects/aws-workshop-114ca/agent/sessions/104ad6af-ee0e-a41e-1d39-7cc2f83d7314/contexts/accounts-info",
+        "lifespanCount": 4,
+        "parameters": {
+          "accounts-name.original": "meetup toto",
+          "end-date": "2018-07-16T12:00:00+02:00",
+          "end-time-period": "",
+          "end-date.original": "demain",
+          "accounts-name": "meetup toto",
+          "end-time": "",
+          "end-date-computed": "2018-07-16T21:59:00.000Z",
+          "accounts-name-computed": "meetup-toto",
+          "end-time.original": "",
+          "end-time-period.original": "",
+          "accounts-number": 2,
+          "accounts-number.original": "2"
+        }
+      },
+      {
+        "name": "projects/aws-workshop-114ca/agent/sessions/104ad6af-ee0e-a41e-1d39-7cc2f83d7314/contexts/ask-access",
+        "lifespanCount": 4,
+        "parameters": {
+          "accounts-name.original": "meetup toto",
+          "end-date": "2018-07-16T12:00:00+02:00",
+          "end-time-period": "",
+          "end-date.original": "demain",
+          "accounts-name": "meetup toto",
+          "end-time": "",
+          "end-time.original": "",
+          "end-time-period.original": "",
+          "accounts-number.original": "2",
+          "accounts-number": 2
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/aws-workshop-114ca/agent/intents/af13032a-6ffa-4d13-b8d5-e0a1d5f018f1",
+      "displayName": "Order accounts creation - yes"
+    },
+    "intentDetectionConfidence": 1,
+    "languageCode": "fr"
+  },
+  "originalDetectIntentRequest": {
+    "payload": {}
+  },
+  "session": "projects/aws-workshop-114ca/agent/sessions/104ad6af-ee0e-a41e-1d39-7cc2f83d7314"
+}

@@ -1,0 +1,111 @@
+service: aws-workshop-chatbot
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  region: eu-west-1
+
+  iamRoleStatements:
+    - Sid: "AllowAssumeRoleToWorkshopAccount"
+      Effect: "Allow"
+      Action:
+        - "sts:AssumeRole"
+      Resource: "${self:custom.role}"
+    - Sid: "AllowScheduleRule"
+      Effect: "Allow"
+      Action:
+        - "events:PutRule"
+        - "events:DeleteRule"
+        - "events:PutTargets"
+        - "events:RemoveTargets"
+      Resource:
+        Fn::Join:
+          - ':'
+          -
+            - 'arn:aws:events'
+            - Ref: 'AWS::Region'
+            - Ref: 'AWS::AccountId'
+            - 'rule/workshop-*'
+    - Sid: "AllowSES"
+      Effect: "Allow"
+      Action:
+        - "ses:sendTemplatedEmail"
+      Resource: "*"
+
+package:
+  include:
+    # Include payload file to allow invoke local --path
+    - app/tests/*.payload.json
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+
+custom:
+  stage: ${opt:stage, self:provider.stage, env:USER}
+  role: ${opt:role, "arn:aws:iam::770194736899:role/manage-users"}
+  ses-template: workshop-users-create
+
+functions:
+
+  chatbot:
+    handler: app/handlers/index.handlerHttp
+    name: ${self:custom.stage}-aws-workshop-chatbot
+    environment:
+      ROLE_TO_ASSUME: ${self:custom.role}
+      LOGIN_URL: http://xebia-france-workshop.signin.aws.amazon.com/console
+      SES_CREATE_TEMPLATE: ${self:custom.ses-template}
+      LAMBDA_ARN_TO_DELETE:
+        Ref: WorkshopUsersDeleteLambdaFunction
+#        Fn::Join:
+#          - ':'
+#          -
+#            - 'arn:aws:lambda'
+#            - Ref: 'AWS::Region'
+#            - Ref: 'AWS::AccountId'
+#            - 'function:${self:custom.stage}-aws-workshop-user-delete'
+    events:
+      - http:
+          path: /
+          method: GET
+          cors: true
+      - http:
+          path: /{any+}
+          method: ANY
+          cors: true
+
+
+  WorkshopUsersDelete:
+    handler: app/controllers/DeleteController.deleteUsers
+    name: ${self:custom.stage}-aws-workshop-users-delete
+    environment:
+      ROLE_TO_ASSUME: ${self:custom.role}
+
+resources:
+  Resources:
+    AllowCloudWatch:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName:
+          Ref: ChatbotLambdaFunction
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::Join:
+            - ':'
+            -
+              - 'arn:aws:events'
+              - Ref: 'AWS::Region'
+              - Ref: 'AWS::AccountId'
+              - 'rule/*'
+
+    MailCreateTemplate:
+      Type: "AWS::SES::Template"
+      Properties:
+        Template:
+          TemplateName: ${self:custom.ses-template}
+          SubjectPart: "[AWS] Create users account for {{ workshopName }} into workshop account"
+          HtmlPart: |
+            <p>Users accounts created</p>
+            <b>Login url:</b> {{ loginUrl }}
+            <div>{{ accounts }}</div>

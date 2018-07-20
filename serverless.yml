@@ -32,7 +32,7 @@ provider:
       Resource: "*"
 
 custom:
-  role: $${opt:role}
+  role: $${opt:role, "arn:aws:iam::770194736899:role/manage-users"}
   ses-template: workshop-users-create
 
 functions:

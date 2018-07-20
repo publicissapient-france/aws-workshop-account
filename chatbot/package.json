@@ -1,0 +1,35 @@
+{
+  "name": "aws-workshop-chatbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "serverless offline --stage dev",
+    "test": "npm test"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.6",
+    "@types/koa": "2.0.46",
+    "@types/koa-router": "7.0.30",
+    "@types/winston": "^2.3.9",
+    "serverless": "^1.27.3",
+    "serverless-offline": "^3.25.4",
+    "serverless-plugin-typescript": "^1.1.5",
+    "ts-node": "^6.1.0",
+    "typescript": "^2.9.1"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.266.1",
+    "dialogflow-fulfillment": "^0.4.1",
+    "generate-password": "^1.4.0",
+    "koa": "^2.5.2",
+    "koa-bodyparser": "^4.2.1",
+    "koa-router": "^7.4.0",
+    "lodash": "^4.17.10",
+    "moment": "^2.22.2",
+    "serverless-http": "^1.5.3",
+    "winston": "^2.4.2"
+  }
+}
