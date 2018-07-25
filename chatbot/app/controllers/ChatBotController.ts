@@ -34,16 +34,16 @@ const decider = new IntentDecider()
 
 
 function getEndDate(params) {
+  let endDateString = params['end-date'];
   if (!params['end-date']) {
-    logger.error('End date parameter not found in the payload', { params: JSON.stringify(params) });
-    throw Error('End date parameter not found in the payload');
+    logger.info('End date parameter not found in the payload. Set end date to today', { params: JSON.stringify(params) });
+    endDateString = undefined;
   }
 
-  const endDate = moment(params['end-date']);
+  const endDate = moment(endDateString);
 
   // If no end time in the request craft a default end time (midnight)
   const endTime = params['end-time'] ? moment(params['end-time']) : moment().hours(23).minutes(59).seconds(0);
-
 
   // Compute final end date
   const finalEndDate = endDate
@@ -56,7 +56,7 @@ function getEndDate(params) {
 
 async function intentEndDate(request: FulfilmentRequest): Promise<DialogFlowResponse> {
   const endDate = getEndDate(request.queryResult.parameters);
-  logger.info(`The event end at ${endDate}`);
+  logger.info(`The event end at ${endDate}`, { params: JSON.stringify(request.queryResult.parameters)});
 
   return {
     "httpStatus": 200,
