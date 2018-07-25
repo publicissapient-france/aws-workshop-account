@@ -4,6 +4,19 @@ provider:
   name: aws
   runtime: nodejs8.10
   region: eu-west-1
+  endpointType: REGIONAL
+  versionFunctions: false
+
+  apiKeys:
+      - aws-workshop-chatbot
+  usagePlan:
+      quota:
+        limit: 500
+        offset: 2
+        period: MONTH
+      throttle:
+        burstLimit: 30
+        rateLimit: 10
 
   iamRoleStatements:
     - Sid: "AllowAssumeRoleToWorkshopAccount"
@@ -45,6 +58,7 @@ custom:
   stage: ${opt:stage, self:provider.stage, env:USER}
   role: ${opt:role, "arn:aws:iam::770194736899:role/manage-users"}
   ses-template: workshop-users-create
+  jsonlog: ${opt:jsonlog, env:JSON_LOG, "false"}
 
 functions:
 
@@ -57,16 +71,19 @@ functions:
       LOGIN_URL: http://xebia-france-workshop.signin.aws.amazon.com/console
       SES_CREATE_TEMPLATE: ${self:custom.ses-template}
       LAMBDA_ARN_TO_DELETE:
-        Ref: WorkshopUsersDeleteLambdaFunction
+        Fn::GetAtt: [WorkshopUsersDeleteLambdaFunction, Arn]
+      JSON_LOG: ${self:custom.jsonlog}
     events:
       - http:
           path: /
-          method: GET
+          method: ANY
           cors: true
+          private: true
       - http:
           path: /{any+}
           method: ANY
           cors: true
+          private: true
 
 
   WorkshopUsersDelete:
@@ -75,6 +92,7 @@ functions:
     memorySize: 128
     environment:
       ROLE_TO_ASSUME: ${self:custom.role}
+      JSON_LOG: ${self:custom.jsonlog}
 
 resources:
   Resources:
