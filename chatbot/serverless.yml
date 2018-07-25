@@ -51,19 +51,13 @@ functions:
   chatbot:
     handler: app/handlers/index.handlerHttp
     name: ${self:custom.stage}-aws-workshop-chatbot
+    memorySize: 128
     environment:
       ROLE_TO_ASSUME: ${self:custom.role}
       LOGIN_URL: http://xebia-france-workshop.signin.aws.amazon.com/console
       SES_CREATE_TEMPLATE: ${self:custom.ses-template}
       LAMBDA_ARN_TO_DELETE:
         Ref: WorkshopUsersDeleteLambdaFunction
-#        Fn::Join:
-#          - ':'
-#          -
-#            - 'arn:aws:lambda'
-#            - Ref: 'AWS::Region'
-#            - Ref: 'AWS::AccountId'
-#            - 'function:${self:custom.stage}-aws-workshop-user-delete'
     events:
       - http:
           path: /
@@ -78,6 +72,7 @@ functions:
   WorkshopUsersDelete:
     handler: app/controllers/DeleteController.deleteUsers
     name: ${self:custom.stage}-aws-workshop-users-delete
+    memorySize: 128
     environment:
       ROLE_TO_ASSUME: ${self:custom.role}
 

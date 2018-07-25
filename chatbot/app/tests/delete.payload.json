@@ -1,4 +1,8 @@
 {
   "workshopName": "meetup-toto",
-  "usersToDelete": ["meetup-toto-1", "meetup-toto-2"]
+  "usersToDelete": [
+    "meetup-toto-1",
+    "meetup-toto-2",
+    "meetup-toto-3"
+  ]
 }

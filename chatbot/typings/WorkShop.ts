@@ -1,7 +1,6 @@
-
 export type UsersDeleteRequest = {
   workshopName: string,
-  usersToDelete: string []
+  usersToDelete: string[]
 }
 
 export type UsersCreateRequest = {

@@ -9,7 +9,7 @@ const ses = new AWS.SES();
 const ROLE_TO_ASSUME = process.env.ROLE_TO_ASSUME;
 const SES_CREATE_TEMPLATE = process.env.SES_CREATE_TEMPLATE || '';
 const LOGIN_URL = process.env.LOGIN_URL;
-const LAMBDA_ARN_TO_DELETE = process.env.LAMBDA_ARN_TO_DELETE || 'arn:aws:lambda:eu-west-1:010154155802:function:workshop-user-delete';
+const LAMBDA_ARN_TO_DELETE = process.env.LAMBDA_ARN_TO_DELETE === "[object Object]" ? 'arn:aws:lambda:eu-west-1:010154155802:function:workshop-user-delete' : process.env.LAMBDA_ARN_TO_DELETE;
 
 
 /**
@@ -76,7 +76,7 @@ export async function deleteAccounts(params: UsersDeleteRequest) {
   logger.info('Deleted users', JSON.stringify(userDeleted));
 
   // Delete the schedule rule
-  await deleteScheduleRule(workshopName)
+  await deleteScheduleRule(workshopName);
   return userDeleted;
 };
 
@@ -86,7 +86,7 @@ async function deleteScheduleRule(workshopName: string) {
     .then(result => true)
     .catch(error => {
       if(error.code === "ResourceNotFoundException") {
-        return true;
+        return false;
       }
       logger.error(`Error reading schedule rule ${ruleName}`, error);
       return false;
@@ -227,10 +227,6 @@ async function createUser(username, group) {
 }
 
 async function createScheduleRuleToDeleteUsers(workshopName, users, deleteDate, lambdaArn) {
-  if (lambdaArn === "[object Object]") {
-    return;
-  }
-
   const ruleParams = {
     Name: getScheduleRuleName(workshopName),
     ScheduleExpression: `cron(${deleteDate.getUTCMinutes()} ${deleteDate.getUTCHours()} ${deleteDate.getUTCDate()} ${deleteDate.getUTCMonth() + 1} ? ${deleteDate.getFullYear()})`,
